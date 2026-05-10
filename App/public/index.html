@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Explorateurs du Monde</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#0a0e1a;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
+
+/* HEADER + TABS : position fixed — hauteurs explicites */
+#hdr{position:fixed;top:0;left:0;right:0;z-index:100;
+  height:calc(60px + env(safe-area-inset-top));
+  padding-top:calc(14px + env(safe-area-inset-top));padding-bottom:0;
+  padding-left:16px;padding-right:16px;
+  display:flex;align-items:flex-end;
+  background:#0d1220;border-bottom:1px solid rgba(255,255,255,0.06)}
+#tabs{position:fixed;top:calc(60px + env(safe-area-inset-top));left:0;right:0;z-index:100;
+  height:52px;
+  display:flex;background:#0a0e1a;border-bottom:1px solid rgba(255,255,255,0.06)}
+.panel{position:fixed;top:calc(112px + env(safe-area-inset-top));left:0;right:0;bottom:0;display:none;background:#0a0e1a}
+.hdr-row{display:flex;align-items:center;justify-content:space-between;width:100%;padding-bottom:12px}
+.app-title{font-size:22px;font-weight:700;color:#fff}
+.app-title span{color:#c9a227}
+.lang-btn{background:none;border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:4px 8px;font-size:18px;color:#fff;cursor:pointer}
+
+.tab{flex:1;padding:10px 4px;text-align:center;font-size:11px;font-weight:600;
+  color:rgba(255,255,255,0.4);cursor:pointer;border-bottom:2px solid transparent;text-transform:uppercase}
+.tab.active{color:#c9a227;border-bottom-color:#c9a227}
+.tab-icon{font-size:16px;display:block;margin-bottom:2px}
+
+.panel.active{display:block}
+
+/* ── LISTE ── */
+#panel-liste{overflow:hidden}
+/* zone search+filtres : absolute en haut du panel */
+#search-area{position:absolute;top:0;left:0;right:0;z-index:10;background:#0a0e1a}
+.search-bar{padding:10px 16px 0}
+.search-input{width:100%;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);
+  border-radius:10px;padding:9px 14px;color:#fff;font-size:15px;outline:none}
+.search-input::placeholder{color:rgba(255,255,255,0.3)}
+.filter-row{display:flex;gap:6px;padding:8px 16px 10px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.filter-row::-webkit-scrollbar{display:none}
+.filter-btn{white-space:nowrap;padding:5px 12px;border-radius:20px;
+  border:1px solid rgba(255,255,255,0.15);background:transparent;
+  color:rgba(255,255,255,0.5);font-size:12px;cursor:pointer;flex-shrink:0}
+.filter-btn.active{background:#c9a227;border-color:#c9a227;color:#000;font-weight:700}
+/* liste scrollable : top fixe 104px (search 48 + filtres 56) */
+#explorer-list{position:absolute;top:104px;left:0;right:0;bottom:0;
+  overflow-y:auto;-webkit-overflow-scrolling:touch}
+/* cartes */
+.explorer-card{display:flex;align-items:center;gap:12px;padding:12px 16px;
+  border-bottom:1px solid rgba(255,255,255,0.05);cursor:pointer}
+.explorer-card:active{background:rgba(201,162,39,0.08)}
+.explorer-thumb{width:56px;height:56px;border-radius:50%;object-fit:cover;flex-shrink:0;
+  border:2px solid rgba(201,162,39,0.3)}
+.explorer-thumb-ph{width:56px;height:56px;border-radius:50%;
+  background:linear-gradient(135deg,#1a2040,#2a3060);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:22px;
+  border:2px solid rgba(201,162,39,0.3)}
+.explorer-info{flex:1;min-width:0}
+.explorer-name{font-size:15px;font-weight:700;color:#fff;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.explorer-era{font-size:11px;color:#c9a227;font-weight:600;margin-bottom:2px}
+.explorer-zone{font-size:12px;color:rgba(255,255,255,0.45);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.explorer-flag{font-size:22px;flex-shrink:0}
+
+/* ── CARTE ── */
+#panel-carte{overflow:hidden}
+#map{position:absolute;top:0;left:0;right:0;bottom:0}
+
+/* ── QUIZ ── */
+#panel-quiz{overflow:hidden}
+#quiz-score-bar{position:absolute;top:0;left:0;right:0;z-index:10;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 16px;background:rgba(255,255,255,0.03);
+  border-bottom:1px solid rgba(255,255,255,0.06)}
+.qs-lbl{font-size:12px;color:rgba(255,255,255,0.4);font-weight:600;text-transform:uppercase}
+.qs-val{font-size:20px;font-weight:800;color:#c9a227}
+#quiz-main{position:absolute;top:46px;left:0;right:0;bottom:0;
+  overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px}
+
+/* quiz cards */
+.quiz-card{background:linear-gradient(135deg,#141c2e,#0f1522);border-radius:16px;
+  padding:20px;margin-bottom:16px;border:1px solid rgba(255,255,255,0.07)}
+.quiz-q-num{font-size:11px;color:#c9a227;font-weight:700;text-transform:uppercase;margin-bottom:8px}
+.quiz-question{font-size:16px;font-weight:700;color:#fff;line-height:1.4;margin-bottom:6px}
+.quiz-hint{font-size:12px;color:rgba(255,255,255,0.35);margin-bottom:16px}
+.quiz-portrait-q{width:70px;height:70px;border-radius:12px;object-fit:cover;float:right;
+  margin:0 0 10px 12px;border:2px solid rgba(201,162,39,0.3)}
+.quiz-portrait-q-ph{width:70px;height:70px;border-radius:12px;float:right;
+  margin:0 0 10px 12px;background:linear-gradient(135deg,#1a2040,#2a3060);
+  display:inline-flex;align-items:center;justify-content:center;font-size:28px;
+  border:2px solid rgba(201,162,39,0.3)}
+.quiz-answers{display:flex;flex-direction:column;gap:8px;clear:both}
+.quiz-answer-btn{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);
+  border-radius:12px;padding:12px 14px;color:#fff;font-size:14px;text-align:left;cursor:pointer}
+.quiz-answer-btn.correct{background:rgba(52,199,89,0.2);border-color:#34c759;color:#34c759}
+.quiz-answer-btn.wrong{background:rgba(255,59,48,0.2);border-color:#ff3b30;color:#ff3b30}
+.quiz-next-btn{width:100%;background:linear-gradient(135deg,#c9a227,#e8b830);border:none;
+  border-radius:12px;padding:14px;color:#000;font-size:15px;font-weight:800;
+  cursor:pointer;margin-top:12px;display:none}
+.quiz-next-btn.visible{display:block}
+.quiz-finish{text-align:center;padding:30px 20px}
+.quiz-finish-icon{font-size:60px;margin-bottom:12px}
+.quiz-finish-score{font-size:40px;font-weight:900;color:#c9a227;margin-bottom:6px}
+.quiz-finish-msg{font-size:16px;color:rgba(255,255,255,0.6);margin-bottom:20px}
+.quiz-restart-btn{background:linear-gradient(135deg,#c9a227,#e8b830);border:none;
+  border-radius:12px;padding:14px 30px;color:#000;font-size:15px;font-weight:800;cursor:pointer}
+
+/* ── DETAIL ── */
+.detail-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);
+  z-index:1000;display:none;align-items:flex-end}
+.detail-overlay.open{display:flex}
+.detail-sheet{background:linear-gradient(180deg,#121828,#0d1422);
+  border-radius:20px 20px 0 0;width:100%;max-height:88vh;
+  overflow-y:auto;padding-bottom:calc(24px + env(safe-area-inset-bottom));
+  -webkit-overflow-scrolling:touch}
+.detail-header{position:relative;padding:16px 16px 0}
+.detail-drag{width:36px;height:4px;background:rgba(255,255,255,0.2);
+  border-radius:2px;margin:0 auto 14px}
+.detail-close{position:absolute;top:16px;right:16px;width:30px;height:30px;
+  border-radius:50%;background:rgba(255,255,255,0.1);border:none;color:#fff;
+  font-size:16px;cursor:pointer}
+.detail-hero{display:flex;gap:14px;padding:0 16px 16px;border-bottom:1px solid rgba(255,255,255,0.07)}
+.detail-portrait{width:90px;height:90px;border-radius:16px;object-fit:cover;
+  flex-shrink:0;border:2px solid rgba(201,162,39,0.4)}
+.detail-portrait-ph{width:90px;height:90px;border-radius:16px;
+  background:linear-gradient(135deg,#1a2040,#2a3060);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:40px;
+  border:2px solid rgba(201,162,39,0.4)}
+.detail-meta{flex:1}
+.detail-name{font-size:20px;font-weight:800;color:#fff;line-height:1.1;margin-bottom:4px}
+.detail-dates{font-size:13px;color:#c9a227;font-weight:600;margin-bottom:6px}
+.detail-origin{font-size:13px;color:rgba(255,255,255,0.55)}
+.detail-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.detail-tag{background:rgba(201,162,39,0.15);border:1px solid rgba(201,162,39,0.3);
+  border-radius:6px;padding:2px 8px;font-size:11px;color:#c9a227;font-weight:600}
+.detail-body{padding:14px 16px}
+.detail-stitle{font-size:12px;font-weight:700;color:#c9a227;text-transform:uppercase;
+  letter-spacing:1px;margin-bottom:8px;margin-top:14px}
+.detail-bio{font-size:14px;color:rgba(255,255,255,0.75);line-height:1.65}
+.detail-explorations{display:flex;flex-direction:column;gap:6px}
+.expl-item{background:rgba(255,255,255,0.04);border-radius:10px;padding:10px 12px;
+  border-left:3px solid #c9a227}
+.expl-item-t{font-size:13px;font-weight:700;color:#fff;margin-bottom:2px}
+.expl-item-d{font-size:12px;color:rgba(255,255,255,0.5)}
+.detail-wiki-btn{display:block;margin:16px 16px 0;
+  background:rgba(201,162,39,0.12);border:1px solid rgba(201,162,39,0.3);
+  border-radius:12px;padding:11px 16px;color:#c9a227;font-size:14px;
+  font-weight:600;text-align:center;text-decoration:none}
+
+/* ── SETTINGS ── */
+.settings-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);
+  z-index:2000;display:none;align-items:flex-end}
+.settings-overlay.open{display:flex}
+.settings-sheet{background:#13192a;border-radius:20px 20px 0 0;width:100%;
+  padding:20px 16px calc(24px + env(safe-area-inset-bottom));overflow-y:auto;max-height:88vh}
+.settings-title{font-size:17px;font-weight:700;color:#fff;margin-bottom:16px;text-align:center}
+.apps-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+.apps-grid-item{display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer}
+.apps-grid-item img{width:56px;height:56px;border-radius:13px;background:rgba(255,255,255,0.05)}
+.apps-grid-item span{font-size:9px;color:rgba(255,255,255,0.55);text-align:center;line-height:1.2}
+.apps-badge{display:block;margin:0 auto;height:36px}
+.settings-close-btn{width:100%;background:rgba(255,255,255,0.08);border:none;
+  border-radius:12px;padding:12px;color:#fff;font-size:15px;cursor:pointer;margin-top:8px}
+
+/* iPad */
+@media(min-width:768px){
+  .detail-overlay,.settings-overlay{align-items:center;justify-content:center}
+  .detail-sheet{border-radius:20px;width:600px;max-width:90vw;max-height:80vh}
+  .settings-sheet{border-radius:20px;width:700px;max-width:90vw;max-height:80vh}
+  .apps-grid{grid-template-columns:repeat(6,1fr)}
+  .app-title{font-size:26px}
+}
+
+/* ── TAILLE POLICES DYNAMIQUE via --fs ── */
+/* Toutes les tailles de texte qui s'adaptent */
+:root{--fs:1}
+.explorer-name{font-size:calc(15px * var(--fs))}
+.explorer-era{font-size:calc(11px * var(--fs))}
+.explorer-zone{font-size:calc(12px * var(--fs))}
+.filter-btn{font-size:calc(12px * var(--fs))}
+.search-input{font-size:calc(15px * var(--fs))}
+.tab{font-size:calc(11px * var(--fs))}
+.tab-icon{font-size:calc(16px * var(--fs))}
+.detail-name{font-size:calc(20px * var(--fs))}
+.detail-dates{font-size:calc(13px * var(--fs))}
+.detail-origin{font-size:calc(13px * var(--fs))}
+.detail-bio{font-size:calc(14px * var(--fs))}
+.detail-stitle{font-size:calc(12px * var(--fs))}
+.detail-tag{font-size:calc(11px * var(--fs))}
+.expl-item-t{font-size:calc(13px * var(--fs))}
+.expl-item-d{font-size:calc(12px * var(--fs))}
+.detail-wiki-btn{font-size:calc(14px * var(--fs))}
+.quiz-question{font-size:calc(16px * var(--fs))}
+.quiz-hint{font-size:calc(12px * var(--fs))}
+.quiz-answer-btn{font-size:calc(14px * var(--fs))}
+.quiz-q-num{font-size:calc(11px * var(--fs))}
+.quiz-next-btn{font-size:calc(15px * var(--fs))}
+.quiz-finish-msg{font-size:calc(16px * var(--fs))}
+.qs-lbl{font-size:calc(12px * var(--fs))}
+
+/* Slider taille */
+.fs-row{display:flex;align-items:center;gap:10px;padding:0 4px;margin-bottom:16px}
+.fs-label{font-size:13px;color:rgba(255,255,255,0.6);white-space:nowrap}
+.fs-slider{flex:1;-webkit-appearance:none;height:4px;border-radius:2px;background:rgba(255,255,255,0.15);outline:none}
+.fs-slider::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#c9a227;cursor:pointer}
+.fs-val{font-size:13px;color:#c9a227;font-weight:700;min-width:32px;text-align:right}
+.fs-section-title{font-size:12px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
+
+/* Leaflet */
+.leaflet-popup-content-wrapper{background:#1a2240;border:1px solid rgba(201,162,39,0.4);border-radius:12px}
+.leaflet-popup-content{color:#fff;font-family:-apple-system,sans-serif;font-size:13px;margin:10px 14px}
+.leaflet-popup-tip{background:#1a2240}
+.leaflet-popup-close-button{color:rgba(255,255,255,0.5)!important}
+.popup-name{font-weight:700;font-size:14px;color:#fff;margin-bottom:3px}
+.popup-era{font-size:11px;color:#c9a227;margin-bottom:4px}
+.popup-zone{font-size:11px;color:rgba(255,255,255,0.5)}
+.popup-detail-btn{display:block;margin-top:8px;background:rgba(201,162,39,0.2);
+  border-radius:8px;padding:5px 10px;text-align:center;font-size:12px;font-weight:700;
+  color:#c9a227;cursor:pointer}
+</style>
+</head>
+<body style="background:#0a0e1a">
+
+<div id="hdr">
+  <div class="hdr-row">
+    <div class="app-title">&#x1F9ED; <span>Explorateurs</span> du Monde</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="lang-btn" id="langBtn" onclick="toggleLang()">&#x1F1EC;&#x1F1E7;</button>
+      <button class="lang-btn" onclick="openSettings()" style="font-size:14px">&#x2699;&#xFE0F;</button>
+    </div>
+  </div>
+</div>
+
+<div id="tabs">
+  <div class="tab active" onclick="showTab('liste')"><span class="tab-icon">&#x1F4DC;</span><span id="t1">Liste</span></div>
+  <div class="tab" onclick="showTab('carte')"><span class="tab-icon">&#x1F5FA;&#xFE0F;</span><span id="t2">Carte</span></div>
+  <div class="tab" onclick="showTab('quiz')"><span class="tab-icon">&#x1F3AF;</span><span id="t3">Quiz</span></div>
+</div>
+
+<div class="panel active" id="panel-liste">
+  <div id="search-area">
+    <div class="search-bar">
+      <div style="position:relative;display:flex;align-items:center">
+        <input class="search-input" id="searchInput" placeholder="Rechercher..." oninput="filterX()" style="padding-right:40px">
+        <button id="searchClear" onclick="clearSearch()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:14px;cursor:pointer;padding:0;line-height:1;width:22px;height:22px;border-radius:50%;display:none;align-items:center;justify-content:center">&#x2715;</button>
+      </div>
+    </div>
+    <div class="filter-row" id="filterRow"></div>
+  </div>
+  <div id="explorer-list"></div>
+</div>
+
+<div class="panel" id="panel-carte">
+  <div id="map"></div>
+</div>
+
+<div class="panel" id="panel-quiz">
+  <div id="quiz-score-bar">
+    <div class="qs-lbl" id="qsl">Score</div>
+    <div class="qs-val" id="qsv">0 / 0</div>
+  </div>
+  <div id="quiz-main"></div>
+</div>
+
+<div class="detail-overlay" id="detailOverlay" onclick="closeDetail(event)">
+  <div class="detail-sheet">
+    <div class="detail-header">
+      <div class="detail-drag"></div>
+      <button class="detail-close" onclick="closeDetailBtn()">&#x2715;</button>
+    </div>
+    <div id="detailContent"></div>
+  </div>
+</div>
+
+<div class="settings-overlay" id="settingsOverlay" onclick="closeSettingsEv(event)">
+  <div class="settings-sheet">
+    <div class="detail-drag" style="margin-bottom:12px"></div>
+    <div class="settings-title" id="setTitle">Mes Applications</div>
+    <div class="fs-section-title" id="fsSecTitle">Taille des textes</div>
+    <div class="fs-row">
+      <span class="fs-label">A</span>
+      <input class="fs-slider" id="fsSlider" type="range" min="0.85" max="1.4" step="0.05" value="1" oninput="applyFs(this.value)">
+      <span class="fs-label" style="font-size:18px">A</span>
+      <span class="fs-val" id="fsValLbl">100%</span>
+    </div>
+    <div class="apps-grid" id="appsGrid"></div>
+    <a href="https://apps.apple.com/developer/id1017896729" onclick="openExt(this.href);return false;">
+      <img class="apps-badge" src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/fr-fr" alt="">
+    </a>
+    <button class="settings-close-btn" id="setClose" onclick="closeSettings()">Fermer</button>
+  </div>
+</div>
+
+<script>
+// ─── LAYOUT ─────────────────────────────────────────────────────────────────
+function layout(){ /* positionnement géré par CSS */ }
+window.addEventListener('resize', layout);
+window.addEventListener('orientationchange', function(){ setTimeout(layout, 300); });
+// Capacitor/Cordova : déclencher layout quand l'app native est prête
+document.addEventListener('deviceready', function(){ layout(); setTimeout(layout, 100); }, false);
+document.addEventListener('DOMContentLoaded', function(){ layout(); setTimeout(layout, 100); });
+
+var LANG = "fr";
+var EXPLORERS = [
+  {id:1, nom:"Pythéas", nom_en:"Pytheas", dates:"v.380–310 av. J.-C.", pays:"🇬🇷 Grèce", ere:"Antiquité", ere_en:"Antiquity",
+   zone:"Méditerranée, Atlantique Nord", zone_en:"Mediterranean, North Atlantic",
+   lat:55.0, lng:-3.0,
+   emoji:"⚓",
+   wt:"Pythéas",
+   bio_fr:"Navigateur et géographe grec originaire de Marseille (Massalia), Pythéas est le premier explorateur connu à avoir navigué vers les îles Britanniques et à avoir atteint une terre qu'il nomme Thulé, peut-être l'Islande ou les Shetland. Il décrit pour la première fois le phénomène des marées atlantiques et de la nuit polaire.",
+   bio_en:"Greek navigator and geographer from Marseille (Massalia), Pytheas is the first known explorer to have sailed to the British Isles and to have reached a land he called Thule, possibly Iceland or the Shetlands. He first described Atlantic tides and polar night.",
+   explorations:[{t_fr:"Tour de la Grande-Bretagne",t_en:"Circumnavigation of Britain",d_fr:"Premier tour documenté des îles Britanniques, v.325 av. J.-C.",d_en:"First documented circumnavigation of British Isles, c.325 BC"}]},
+
+  {id:2, nom:"Hannon le Navigateur", nom_en:"Hanno the Navigator", dates:"v.500 av. J.-C.", pays:"🇹🇳 Carthage", ere:"Antiquité", ere_en:"Antiquity",
+   zone:"Côte ouest-africaine", zone_en:"West African coast",
+   lat:5.0, lng:-13.0,
+   emoji:"🚢",
+   wt:"Hannon le Navigateur",
+   bio_fr:"Navigateur et homme d'État carthaginois, Hannon dirigea une expédition de 60 navires et 30 000 colons le long des côtes ouest-africaines vers 500 av. J.-C. Il fonda plusieurs colonies et atteignit peut-être le Cameroun ou le Gabon, rencontrant les 'Gorilles'.",
+   bio_en:"Carthaginian navigator and statesman, Hanno led an expedition of 60 ships and 30,000 settlers along West African coasts around 500 BC. He founded several colonies and possibly reached Cameroon or Gabon, encountering 'Gorillas'.",
+   explorations:[{t_fr:"Exploration de l'Afrique de l'Ouest",t_en:"West Africa Exploration",d_fr:"Colonisation des côtes africaines au-delà du Maroc actuel",d_en:"Colonisation of African coasts beyond modern Morocco"}]},
+
+  {id:3, nom:"Zhang Qian", nom_en:"Zhang Qian", dates:"v.164–114 av. J.-C.", pays:"🇨🇳 Chine", ere:"Antiquité", ere_en:"Antiquity",
+   zone:"Asie centrale", zone_en:"Central Asia",
+   lat:39.9, lng:75.0,
+   emoji:"🐪",
+   wt:"Zhang Qian",
+   bio_fr:"Diplomate et explorateur chinois de la dynastie Han, Zhang Qian ouvrit la Route de la Soie vers l'Asie centrale lors de deux expéditions majeures. Capturé par les Xiongnu pendant dix ans, il parvint finalement à atteindre la Bactriane et la Ferghana, établissant des contacts commerciaux et diplomatiques sans précédent.",
+   bio_en:"Chinese diplomat and explorer of the Han dynasty, Zhang Qian opened the Silk Road to Central Asia in two major expeditions. Captured by the Xiongnu for ten years, he eventually reached Bactria and Ferghana, establishing unprecedented commercial and diplomatic contacts.",
+   explorations:[{t_fr:"Route de la Soie",t_en:"Silk Road",d_fr:"Ouverture des routes commerciales entre la Chine et l'Asie centrale",d_en:"Opening of trade routes between China and Central Asia"}]},
+
+  {id:4, nom:"Leif Erikson", nom_en:"Leif Erikson", dates:"v.970–1020", pays:"🇮🇸 Islande/Norvège", ere:"Moyen Âge", ere_en:"Middle Ages",
+   zone:"Amérique du Nord", zone_en:"North America",
+   lat:51.0, lng:-56.0,
+   emoji:"🪓",
+   wt:"Leif Erikson",
+   bio_fr:"Explorateur viking islandais, Leif Erikson fut probablement le premier Européen à poser le pied en Amérique du Nord, qu'il appela Vinland, vers l'an 1000, cinq siècles avant Christophe Colomb. Il établit un campement à L'Anse aux Meadows, à Terre-Neuve.",
+   bio_en:"Icelandic Viking explorer, Leif Erikson was probably the first European to set foot in North America, which he called Vinland, around the year 1000, five centuries before Columbus. He established a camp at L'Anse aux Meadows, Newfoundland.",
+   explorations:[{t_fr:"Vinland",t_en:"Vinland",d_fr:"Découverte de l'Amérique du Nord v.1000, camp à L'Anse aux Meadows",d_en:"Discovery of North America c.1000, camp at L'Anse aux Meadows"}]},
+
+  {id:5, nom:"Marco Polo", nom_en:"Marco Polo", dates:"1254–1324", pays:"🇮🇹 Venise", ere:"Moyen Âge", ere_en:"Middle Ages",
+   zone:"Asie centrale, Chine, Perse", zone_en:"Central Asia, China, Persia",
+   lat:39.9, lng:116.4,
+   emoji:"📖",
+   wt:"Marco Polo",
+   bio_fr:"Marchand et explorateur vénitien, Marco Polo voyagea pendant 24 ans à travers l'Asie (1271–1295), séjournant 17 ans à la cour de Kubilaï Khan en Chine. Son livre 'Le Devisement du monde' décrit des civilisations inconnues de l'Europe médiévale et inspira des générations d'explorateurs, dont Christophe Colomb.",
+   bio_en:"Venetian merchant and explorer, Marco Polo traveled for 24 years across Asia (1271–1295), spending 17 years at the court of Kublai Khan in China. His book 'The Travels of Marco Polo' described civilizations unknown to medieval Europe and inspired generations of explorers, including Christopher Columbus.",
+   explorations:[{t_fr:"Route de la Soie vers la Chine",t_en:"Silk Road to China",d_fr:"24 ans de voyage de Venise à la Chine et retour (1271–1295)",d_en:"24 years of travel from Venice to China and back (1271–1295)"}]},
+
+  {id:6, nom:"Ibn Battuta", nom_en:"Ibn Battuta", dates:"1304–1368", pays:"🇲🇦 Maroc", ere:"Moyen Âge", ere_en:"Middle Ages",
+   zone:"Afrique, Asie, Europe", zone_en:"Africa, Asia, Europe",
+   lat:1.3, lng:103.8,
+   emoji:"📜",
+   wt:"Ibn Battûta",
+   bio_fr:"Le plus grand voyageur médiéval, Ibn Battuta parcourut plus de 120 000 kilomètres en 29 ans (1325–1354), traversant le monde islamique, l'Afrique sub-saharienne, l'Inde, la Chine et l'Asie du Sud-Est. Son récit 'La Rihla' reste une source historique irremplaçable sur le XIVe siècle.",
+   bio_en:"The greatest medieval traveler, Ibn Battuta covered more than 120,000 kilometers over 29 years (1325–1354), crossing the Islamic world, sub-Saharan Africa, India, China and Southeast Asia. His account 'The Rihla' remains an irreplaceable historical source on the 14th century.",
+   explorations:[{t_fr:"Tour du monde médiéval",t_en:"Medieval world tour",d_fr:"120 000 km en 29 ans à travers le monde islamique et au-delà",d_en:"120,000 km in 29 years across the Islamic world and beyond"}]},
+
+  {id:7, nom:"Zheng He", nom_en:"Zheng He", dates:"1371–1433", pays:"🇨🇳 Chine", ere:"Grandes Découvertes", ere_en:"Age of Discovery",
+   zone:"Asie du Sud-Est, Inde, Afrique", zone_en:"Southeast Asia, India, Africa",
+   lat:-4.0, lng:39.7,
+   emoji:"⛵",
+   wt:"Zheng He",
+   bio_fr:"Amiral eunuque de la dynastie Ming, Zheng He commanda sept expéditions maritimes colossales entre 1405 et 1433, à la tête d'armadas de plusieurs centaines de navires géants ('jonques au trésor'). Il atteignit l'Afrique de l'Est, la péninsule arabique, l'Inde et l'Asie du Sud-Est, établissant des réseaux commerciaux et diplomatiques vastes.",
+   bio_en:"Eunuch admiral of the Ming dynasty, Zheng He commanded seven colossal maritime expeditions between 1405 and 1433, leading armadas of hundreds of giant vessels ('treasure junks'). He reached East Africa, the Arabian Peninsula, India and Southeast Asia.",
+   explorations:[{t_fr:"7 grandes expéditions Ming",t_en:"7 Ming Treasure Voyages",d_fr:"Flottes géantes vers l'Afrique de l'Est et l'Inde (1405–1433)",d_en:"Giant fleets to East Africa and India (1405–1433)"}]},
+
+  {id:8, nom:"Bartolomeu Dias", nom_en:"Bartolomeu Dias", dates:"v.1450–1500", pays:"🇵🇹 Portugal", ere:"Grandes Découvertes", ere_en:"Age of Discovery",
+   zone:"Afrique du Sud", zone_en:"South Africa",
+   lat:-34.4, lng:18.5,
+   emoji:"⛵",
+   wt:"Bartolomeu Dias",
+   bio_fr:"Navigateur portugais, Bartolomeu Dias fut le premier Européen à contourner la pointe sud de l'Afrique en 1488, qu'il nomma 'Cap des Tempêtes' (rebaptisé Cap de Bonne-Espérance). Cette route ouvrit la voie maritime vers l'Inde. Il périt dans une tempête lors de l'expédition de Cabral en 1500.",
+   bio_en:"Portuguese navigator, Bartolomeu Dias was the first European to round the southern tip of Africa in 1488, which he named 'Cape of Storms' (renamed Cape of Good Hope). This route opened the sea passage to India. He perished in a storm during Cabral's 1500 expedition.",
+   explorations:[{t_fr:"Cap de Bonne-Espérance",t_en:"Cape of Good Hope",d_fr:"Premier contournement du cap sud de l'Afrique (1488)",d_en:"First rounding of Africa's southern cape (1488)"}]},
+
+  {id:9, nom:"Christophe Colomb", nom_en:"Christopher Columbus", dates:"1451–1506", pays:"🇮🇹 Gênes/🇪🇸 Espagne", ere:"Grandes Découvertes", ere_en:"Age of Discovery",
+   zone:"Amériques, Caraïbes", zone_en:"Americas, Caribbean",
+   lat:12.1, lng:-69.0,
+   emoji:"🌎",
+   wt:"Christophe Colomb",
+   bio_fr:"Navigateur génois au service de l'Espagne, Christophe Colomb réalisa quatre voyages vers l'Amérique entre 1492 et 1504, convaincu d'avoir atteint les Indes. Sa traversée de l'Atlantique de 1492 est considérée comme un tournant de l'histoire mondiale, initiant la colonisation européenne des Amériques.",
+   bio_en:"Genoese navigator in Spanish service, Christopher Columbus made four voyages to America between 1492 and 1504, convinced he had reached the Indies. His 1492 Atlantic crossing is considered a turning point in world history, initiating European colonization of the Americas.",
+   explorations:[{t_fr:"Découverte de l'Amérique",t_en:"Discovery of America",d_fr:"4 voyages vers les Amériques (1492–1504)",d_en:"4 voyages to the Americas (1492–1504)"}]},
+
+  {id:10, nom:"Vasco de Gama", nom_en:"Vasco da Gama", dates:"v.1460–1524", pays:"🇵🇹 Portugal", ere:"Grandes Découvertes", ere_en:"Age of Discovery",
+   zone:"Afrique, Inde", zone_en:"Africa, India",
+   lat:11.9, lng:79.8,
+   emoji:"⚓",
+   wt:"Vasco de Gama",
+   bio_fr:"Navigateur et amiral portugais, Vasco de Gama fut le premier à relier l'Europe à l'Inde par voie maritime en contournant l'Afrique (1497–1499). Son voyage inaugura une ère de commerce direct entre l'Europe et l'Asie, bouleversant les routes commerciales existantes et établissant la domination maritime portugaise dans l'océan Indien.",
+   bio_en:"Portuguese navigator and admiral, Vasco da Gama was the first to connect Europe to India by sea route around Africa (1497–1499). His voyage inaugurated an era of direct trade between Europe and Asia, revolutionizing existing trade routes.",
+   explorations:[{t_fr:"Route maritime vers l'Inde",t_en:"Sea route to India",d_fr:"Premier voyage Europe–Inde par le Cap de Bonne-Espérance (1497–99)",d_en:"First Europe–India voyage via Cape of Good Hope (1497–99)"}]},
+
+  {id:11, nom:"Amerigo Vespucci", nom_en:"Amerigo Vespucci", dates:"1454–1512", pays:"🇮🇹 Florence/🇪🇸 Espagne", ere:"Grandes Découvertes", ere_en:"Age of Discovery",
+   zone:"Amérique du Sud", zone_en:"South America",
+   lat:-10.0, lng:-53.0,
+   emoji:"🌍",
+   wt:"Amerigo Vespucci",
+   bio_fr:"Navigateur florentin au service de l'Espagne puis du Portugal, Amerigo Vespucci fut le premier à affirmer que les terres découvertes par Colomb constituaient un Nouveau Monde distinct de l'Asie. C'est en son honneur que le cartographe Waldseemüller nomma ce continent 'Amérique' en 1507.",
+   bio_en:"Florentine navigator in Spanish then Portuguese service, Amerigo Vespucci was the first to claim that the lands discovered by Columbus formed a New World distinct from Asia. In his honor, cartographer Waldseemüller named this continent 'America' in 1507.",
+   explorations:[{t_fr:"Exploration de l'Amérique du Sud",t_en:"South America Exploration",d_fr:"Reconnaissance des côtes de l'Amérique du Sud (1499–1502)",d_en:"Reconnaissance of South American coasts (1499–1502)"}]},
+
+  {id:12, nom:"Fernand de Magellan", nom_en:"Ferdinand Magellan", dates:"v.1480–1521", pays:"🇵🇹 Portugal/🇪🇸 Espagne", ere:"Grandes Découvertes", ere_en:"Age of Discovery",
+   zone:"Monde (premier tour du monde)", zone_en:"World (first circumnavigation)",
+   lat:10.3, lng:124.0,
+   emoji:"🌐",
+   wt:"Fernand de Magellan",
+   bio_fr:"Navigateur portugais au service de l'Espagne, Magellan initia le premier voyage de circumnavigation du globe (1519–1522). Il découvrit le détroit qui porte son nom, traversa le Pacifique et prouva la rotondité de la Terre. Il fut tué aux Philippines en 1521 ; son lieutenant Elcano acheva le tour du monde.",
+   bio_en:"Portuguese navigator in Spanish service, Magellan initiated the first circumnavigation of the globe (1519–1522). He discovered the strait bearing his name, crossed the Pacific and proved Earth's roundness. Killed in the Philippines in 1521; his lieutenant Elcano completed the journey.",
+   explorations:[{t_fr:"Premier tour du monde",t_en:"First circumnavigation",d_fr:"Expédition Magellan-Elcano, 1519–1522",d_en:"Magellan-Elcano expedition, 1519–1522"}]},
+
+  {id:13, nom:"Hernán Cortés", nom_en:"Hernán Cortés", dates:"1485–1547", pays:"🇪🇸 Espagne", ere:"Grandes Découvertes", ere_en:"Age of Discovery",
+   zone:"Mexique, Amérique centrale", zone_en:"Mexico, Central America",
+   lat:19.4, lng:-99.1,
+   emoji:"⚔️",
+   wt:"Hernán Cortés",
+   bio_fr:"Conquistador et explorateur espagnol, Hernán Cortés mena la conquête de l'Empire aztèque entre 1519 et 1521, prenant Tenochtitlan (Mexico) avec une armée de quelques centaines d'Espagnols et des alliés indigènes. Sa conquête transforma radicalement le Mexique et inaugura la domination espagnole en Mésoamérique.",
+   bio_en:"Spanish conquistador and explorer, Hernán Cortés led the conquest of the Aztec Empire between 1519 and 1521, taking Tenochtitlan (Mexico City) with a few hundred Spaniards and indigenous allies. His conquest radically transformed Mexico.",
+   explorations:[{t_fr:"Conquête de l'Empire aztèque",t_en:"Conquest of the Aztec Empire",d_fr:"Prise de Tenochtitlan et conquête du Mexique (1519–1521)",d_en:"Fall of Tenochtitlan and conquest of Mexico (1519–1521)"}]},
+
+  {id:14, nom:"Francisco Pizarro", nom_en:"Francisco Pizarro", dates:"v.1471–1541", pays:"🇪🇸 Espagne", ere:"Grandes Découvertes", ere_en:"Age of Discovery",
+   zone:"Pérou, Amérique du Sud", zone_en:"Peru, South America",
+   lat:-13.5, lng:-72.0,
+   emoji:"⚔️",
+   wt:"Francisco Pizarro",
+   bio_fr:"Conquistador espagnol, Francisco Pizarro conquit l'Empire inca du Pérou entre 1531 et 1533 avec seulement 168 hommes. La capture et l'exécution de l'Inca Atahualpa à Cajamarca marquèrent la chute de l'un des plus grands empires de l'histoire précolombienne.",
+   bio_en:"Spanish conquistador, Francisco Pizarro conquered the Inca Empire of Peru between 1531 and 1533 with only 168 men. The capture and execution of Inca Atahualpa at Cajamarca marked the fall of one of the greatest pre-Columbian empires.",
+   explorations:[{t_fr:"Conquête de l'Empire inca",t_en:"Conquest of the Inca Empire",d_fr:"Prise de Cajamarca et chute de l'Empire inca (1532)",d_en:"Fall of Cajamarca and collapse of the Inca Empire (1532)"}]},
+
+  {id:15, nom:"Jacques Cartier", nom_en:"Jacques Cartier", dates:"1491–1557", pays:"🇫🇷 France", ere:"Grandes Découvertes", ere_en:"Age of Discovery",
+   zone:"Canada, fleuve Saint-Laurent", zone_en:"Canada, St. Lawrence River",
+   lat:46.8, lng:-71.2,
+   emoji:"🍁",
+   wt:"Jacques Cartier",
+   bio_fr:"Navigateur malouin, Jacques Cartier explora le Canada lors de trois expéditions (1534, 1535, 1541) pour le compte du roi de France François Ier. Il remonta le Saint-Laurent jusqu'à Hochelaga (Montréal actuel), prit possession du territoire au nom de la France et posa les bases de la Nouvelle-France.",
+   bio_en:"Navigator from Saint-Malo, Jacques Cartier explored Canada in three expeditions (1534, 1535, 1541) for French King Francis I. He sailed up the St. Lawrence to Hochelaga (present-day Montreal), claimed the territory for France and laid the foundations of New France.",
+   explorations:[{t_fr:"Exploration du Canada",t_en:"Exploration of Canada",d_fr:"3 expéditions au Canada et remontée du Saint-Laurent (1534–1541)",d_en:"3 expeditions to Canada and up the St. Lawrence (1534–1541)"}]},
+
+  {id:16, nom:"Francis Drake", nom_en:"Francis Drake", dates:"v.1540–1596", pays:"🇬🇧 Angleterre", ere:"Grandes Découvertes", ere_en:"Age of Discovery",
+   zone:"Monde (2e tour du monde)", zone_en:"World (2nd circumnavigation)",
+   lat:-53.0, lng:-70.9,
+   emoji:"🏴‍☠️",
+   wt:"Francis Drake",
+   bio_fr:"Corsaire et navigateur anglais, Francis Drake réalisa le deuxième tour du monde (1577–1580) et fut le premier à le compléter en tant que commandant tout au long du voyage. Il pilla de nombreux ports espagnols en Amérique du Sud et contribua à la défaite de l'Invincible Armada en 1588.",
+   bio_en:"English privateer and navigator, Francis Drake completed the second circumnavigation of the globe (1577–1580) and was the first to complete it as commander throughout. He raided many Spanish ports in South America and contributed to defeating the Spanish Armada in 1588.",
+   explorations:[{t_fr:"2e tour du monde",t_en:"2nd circumnavigation",d_fr:"Tour du monde en tant que commandant (1577–1580)",d_en:"Circumnavigation as full commander (1577–1580)"}]},
+
+  {id:17, nom:"Samuel de Champlain", nom_en:"Samuel de Champlain", dates:"v.1574–1635", pays:"🇫🇷 France", ere:"Grandes Découvertes", ere_en:"Age of Discovery",
+   zone:"Canada, Grands Lacs", zone_en:"Canada, Great Lakes",
+   lat:46.8, lng:-71.2,
+   emoji:"🍁",
+   wt:"Samuel de Champlain",
+   bio_fr:"Explorateur, cartographe et fondateur de Québec (1608), Samuel de Champlain est surnommé 'Père de la Nouvelle-France'. Il explora les côtes atlantiques, le Saint-Laurent, les Grands Lacs et noua des alliances avec les nations autochtones algonquines et huronnes.",
+   bio_en:"Explorer, cartographer and founder of Quebec City (1608), Samuel de Champlain is called the 'Father of New France'. He explored the Atlantic coast, St. Lawrence, Great Lakes and forged alliances with Algonquin and Huron peoples.",
+   explorations:[{t_fr:"Fondation de Québec",t_en:"Founding of Quebec",d_fr:"Exploration de la Nouvelle-France et fondation de Québec (1608)",d_en:"Exploration of New France and founding of Quebec City (1608)"}]},
+
+  {id:18, nom:"Abel Tasman", nom_en:"Abel Tasman", dates:"1603–1659", pays:"🇳🇱 Pays-Bas", ere:"Grandes Découvertes", ere_en:"Age of Discovery",
+   zone:"Océanie, Australie, Nouvelle-Zélande", zone_en:"Oceania, Australia, New Zealand",
+   lat:-42.0, lng:146.0,
+   emoji:"🦘",
+   wt:"Abel Tasman",
+   bio_fr:"Navigateur néerlandais au service de la VOC (Compagnie des Indes orientales), Abel Tasman fut le premier Européen à atteindre la Tasmanie (1642), la Nouvelle-Zélande, les Tonga et les Fidji. L'Australie porte son nom dans l'appellation historique 'Terre de Tasman'.",
+   bio_en:"Dutch navigator in VOC service, Abel Tasman was the first European to reach Tasmania (1642), New Zealand, Tonga and Fiji. Australia was historically referred to as 'Van Diemen's Land' and the region as 'Tasman's discoveries'.",
+   explorations:[{t_fr:"Découverte de la Tasmanie et NZ",t_en:"Discovery of Tasmania and NZ",d_fr:"Premiers contacts européens avec la Tasmanie, NZ, Tonga (1642–43)",d_en:"First European contact with Tasmania, New Zealand, Tonga (1642–43)"}]},
+
+  {id:19, nom:"René-Robert de La Salle", nom_en:"René-Robert de La Salle", dates:"1643–1687", pays:"🇫🇷 France", ere:"Grandes Découvertes", ere_en:"Age of Discovery",
+   zone:"Amérique du Nord, Mississippi", zone_en:"North America, Mississippi",
+   lat:29.9, lng:-90.1,
+   emoji:"🦅",
+   wt:"René-Robert Cavelier de La Salle",
+   bio_fr:"Explorateur français, La Salle fut le premier Européen à descendre le Mississippi jusqu'au Golfe du Mexique en 1682, prenant possession du bassin du Mississippi au nom de Louis XIV et le nommant 'Louisiane'. Il fut assassiné lors d'une expédition au Texas.",
+   bio_en:"French explorer, La Salle was the first European to descend the Mississippi to the Gulf of Mexico in 1682, claiming the Mississippi Basin for Louis XIV and naming it 'Louisiana'. He was murdered during an expedition to Texas.",
+   explorations:[{t_fr:"Descente du Mississippi",t_en:"Mississippi River descent",d_fr:"Premier Européen à descendre le Mississippi jusqu'au golfe (1682)",d_en:"First European to descend the Mississippi to the Gulf (1682)"}]},
+
+  {id:20, nom:"James Cook", nom_en:"James Cook", dates:"1728–1779", pays:"🇬🇧 Angleterre", ere:"Lumières", ere_en:"Age of Enlightenment",
+   zone:"Pacifique, Australie, Antarctique", zone_en:"Pacific, Australia, Antarctica",
+   lat:-33.9, lng:151.2,
+   emoji:"🌏",
+   wt:"James Cook",
+   bio_fr:"Navigateur, cartographe et explorateur britannique, James Cook réalisa trois voyages majeurs dans le Pacifique (1768–1779). Il dressa des cartes précises de la Nouvelle-Zélande et de l'Australie, approcha l'Antarctique et explora Hawaï où il fut tué. Ses travaux transformèrent la géographie mondiale.",
+   bio_en:"British navigator, cartographer and explorer, James Cook made three major voyages in the Pacific (1768–1779). He mapped New Zealand and Australia precisely, approached Antarctica and explored Hawaii where he was killed. His work transformed world geography.",
+   explorations:[{t_fr:"3 voyages dans le Pacifique",t_en:"3 Pacific voyages",d_fr:"Cartographie de l'Australie, NZ et exploration du Pacifique (1768–79)",d_en:"Mapping of Australia, NZ and Pacific exploration (1768–79)"}]},
+
+  {id:21, nom:"Jean-François de La Pérouse", nom_en:"Jean-François de La Pérouse", dates:"1741–1788", pays:"🇫🇷 France", ere:"Lumières", ere_en:"Age of Enlightenment",
+   zone:"Pacifique, Asie, Alaska", zone_en:"Pacific, Asia, Alaska",
+   lat:-11.3, lng:167.0,
+   emoji:"⚓",
+   wt:"Jean-François de La Pérouse",
+   bio_fr:"Navigateur et explorateur français, La Pérouse mena une expédition autour du monde (1785–1788) pour cartographier le Pacifique. Il explora les côtes d'Alaska, du Japon et de la Chine avant de disparaître mystérieusement avec ses deux frégates aux îles Vanikoro (actuel Vanuatu). Le mystère fut résolu en 1826.",
+   bio_en:"French navigator and explorer, La Pérouse led a round-the-world expedition (1785–1788) to chart the Pacific. He explored Alaska, Japan and China before mysteriously disappearing with his two frigates at Vanikoro Island (present-day Vanuatu). The mystery was solved in 1826.",
+   explorations:[{t_fr:"Expédition autour du monde",t_en:"Round-the-world expedition",d_fr:"Exploration du Pacifique ; disparition à Vanikoro (1788)",d_en:"Pacific exploration; disappearance at Vanikoro (1788)"}]},
+
+  {id:22, nom:"Alexander von Humboldt", nom_en:"Alexander von Humboldt", dates:"1769–1859", pays:"🇩🇪 Prusse", ere:"Lumières", ere_en:"Age of Enlightenment",
+   zone:"Amérique du Sud, Asie centrale", zone_en:"South America, Central Asia",
+   lat:5.0, lng:-76.0,
+   emoji:"🌿",
+   wt:"Alexander von Humboldt",
+   bio_fr:"Naturaliste, géographe et explorateur prussien, Alexander von Humboldt est l'un des fondateurs de la géographie moderne. Son expédition en Amérique du Sud (1799–1804) avec Aimé Bonpland produisit des observations révolutionnaires sur la végétation, le climat et le géomagnétisme. Il grimpa le volcan Chimborazo et explora l'Orénoque.",
+   bio_en:"Prussian naturalist, geographer and explorer, Alexander von Humboldt is one of the founders of modern geography. His expedition to South America (1799–1804) with Aimé Bonpland produced revolutionary observations on vegetation, climate and geomagnetism. He climbed Chimborazo and explored the Orinoco.",
+   explorations:[{t_fr:"Exploration de l'Amérique du Sud",t_en:"South American Expedition",d_fr:"Expédition scientifique en Amérique équatoriale (1799–1804)",d_en:"Scientific expedition to equatorial America (1799–1804)"}]},
+
+  {id:23, nom:"Meriwether Lewis & William Clark", nom_en:"Lewis & Clark", dates:"1774–1838 / 1770–1838", pays:"🇺🇸 États-Unis", ere:"Lumières", ere_en:"Age of Enlightenment",
+   zone:"Ouest américain, Pacifique", zone_en:"American West, Pacific",
+   lat:46.9, lng:-119.0,
+   emoji:"🦅",
+   wt:"Expédition Lewis et Clark",
+   bio_fr:"Capitaines de l'armée américaine, Meriwether Lewis et William Clark menèrent l'expédition du Corps of Discovery (1804–1806) mandatée par le président Jefferson. Ils traversèrent le continent nord-américain jusqu'au Pacifique, cartographiant et documentant le territoire acquis lors de l'achat de la Louisiane.",
+   bio_en:"US Army captains, Meriwether Lewis and William Clark led the Corps of Discovery expedition (1804–1806) mandated by President Jefferson. They crossed the North American continent to the Pacific, mapping and documenting territory acquired in the Louisiana Purchase.",
+   explorations:[{t_fr:"Corps of Discovery",t_en:"Corps of Discovery",d_fr:"Traversée des États-Unis de Saint-Louis au Pacifique (1804–1806)",d_en:"US transcontinental crossing from St. Louis to Pacific (1804–1806)"}]},
+
+  {id:24, nom:"David Livingstone", nom_en:"David Livingstone", dates:"1813–1873", pays:"🇬🇧 Écosse", ere:"XIXe siècle", ere_en:"19th Century",
+   zone:"Afrique centrale et australe", zone_en:"Central and Southern Africa",
+   lat:-17.9, lng:25.8,
+   emoji:"✝️",
+   wt:"David Livingstone",
+   bio_fr:"Missionnaire et explorateur écossais, David Livingstone est l'un des plus célèbres explorateurs africains. Il découvrit les chutes Victoria en 1855, explora le bassin du Congo et le lac Tanganyika, et milita contre l'esclavage. Sa disparition en 1869 poussa Henry Morton Stanley à l'expédition de retrouvailles célèbre.",
+   bio_en:"Scottish missionary and explorer, David Livingstone is one of the most famous African explorers. He discovered Victoria Falls in 1855, explored the Congo Basin and Lake Tanganyika, and campaigned against slavery. His disappearance in 1869 prompted Henry Morton Stanley's famous rescue expedition.",
+   explorations:[{t_fr:"Découverte des chutes Victoria",t_en:"Discovery of Victoria Falls",d_fr:"Exploration de l'Afrique centrale, chutes Victoria (1855)",d_en:"Central Africa exploration, Victoria Falls (1855)"}]},
+
+  {id:25, nom:"Henry Morton Stanley", nom_en:"Henry Morton Stanley", dates:"1841–1904", pays:"🇬🇧 Galles", ere:"XIXe siècle", ere_en:"19th Century",
+   zone:"Afrique centrale", zone_en:"Central Africa",
+   lat:-4.3, lng:15.3,
+   emoji:"🌍",
+   wt:"Henry Morton Stanley",
+   bio_fr:"Journaliste et explorateur gallois-américain, Stanley retrouva Livingstone en 1871 avec la phrase célèbre 'Dr Livingstone, I presume?' Il traversa l'Afrique d'est en ouest en suivant le fleuve Congo (1874–1877) et cartographia une grande partie de l'Afrique centrale pour le roi Léopold II de Belgique.",
+   bio_en:"Welsh-American journalist and explorer, Stanley found Livingstone in 1871 with the famous phrase 'Dr Livingstone, I presume?' He crossed Africa east to west following the Congo River (1874–1877) and mapped much of Central Africa for King Leopold II of Belgium.",
+   explorations:[{t_fr:"Traversée de l'Afrique",t_en:"Cross-Africa traverse",d_fr:"Traversée de l'Afrique en suivant le Congo (1874–1877)",d_en:"Cross-Africa traverse following the Congo River (1874–1877)"}]},
+
+  {id:26, nom:"Jules Dumont d'Urville", nom_en:"Jules Dumont d'Urville", dates:"1790–1842", pays:"🇫🇷 France", ere:"XIXe siècle", ere_en:"19th Century",
+   zone:"Antarctique, Océanie, Pacifique", zone_en:"Antarctica, Oceania, Pacific",
+   lat:-66.7, lng:140.0,
+   emoji:"🧊",
+   wt:"Jules Dumont d'Urville",
+   bio_fr:"Amiral et explorateur français, Dumont d'Urville réalisa trois expéditions majeures. Il découvrit la Terre Adélie en Antarctique (1840) et la nomma en l'honneur de sa femme. Il identifia également l'origine polynésienne, mélanésienne et micronésienne des populations du Pacifique, et ramena la Vénus de Milo en France.",
+   bio_en:"French admiral and explorer, Dumont d'Urville made three major expeditions. He discovered Adélie Land in Antarctica (1840) and named it after his wife. He also identified Polynesian, Melanesian and Micronesian Pacific populations, and brought the Venus de Milo to France.",
+   explorations:[{t_fr:"Découverte de la Terre Adélie",t_en:"Discovery of Adélie Land",d_fr:"Exploration de l'Antarctique et découverte de la Terre Adélie (1840)",d_en:"Antarctic exploration and discovery of Adélie Land (1840)"}]},
+
+  {id:27, nom:"Roald Amundsen", nom_en:"Roald Amundsen", dates:"1872–1928", pays:"🇳🇴 Norvège", ere:"XXe siècle", ere_en:"20th Century",
+   zone:"Antarctique, Arctique, Pôle Sud", zone_en:"Antarctica, Arctic, South Pole",
+   lat:-90.0, lng:0.0,
+   emoji:"🐧",
+   wt:"Roald Amundsen",
+   bio_fr:"Explorateur polaire norvégien, Roald Amundsen fut le premier à atteindre le pôle Sud le 14 décembre 1911, devançant la malheureuse expédition de Robert Falcon Scott. Il avait auparavant été le premier à naviguer le passage du Nord-Ouest (1903–1906). Il disparut lors d'une mission de sauvetage arctique en 1928.",
+   bio_en:"Norwegian polar explorer, Roald Amundsen was the first to reach the South Pole on December 14, 1911, ahead of Robert Falcon Scott's ill-fated expedition. He had previously been first to navigate the Northwest Passage (1903–1906). He disappeared on an Arctic rescue mission in 1928.",
+   explorations:[{t_fr:"Premier au Pôle Sud",t_en:"First to the South Pole",d_fr:"Atteint le pôle Sud le 14 décembre 1911",d_en:"Reached the South Pole on December 14, 1911"}]},
+
+  {id:28, nom:"Robert Falcon Scott", nom_en:"Robert Falcon Scott", dates:"1868–1912", pays:"🇬🇧 Angleterre", ere:"XXe siècle", ere_en:"20th Century",
+   zone:"Antarctique", zone_en:"Antarctica",
+   lat:-90.0, lng:0.0,
+   emoji:"❄️",
+   wt:"Robert Falcon Scott",
+   bio_fr:"Officier de la Royal Navy et explorateur antarctique britannique, Scott mena deux expéditions en Antarctique. Lors de la deuxième (Terra Nova, 1910–1913), il atteint le pôle Sud le 17 janvier 1912, un mois après Amundsen. Scott et ses quatre compagnons périrent au retour, à seulement 18 km d'un dépôt de ravitaillement.",
+   bio_en:"Royal Navy officer and British Antarctic explorer, Scott led two Antarctic expeditions. During the second (Terra Nova, 1910–1913), he reached the South Pole on January 17, 1912, a month after Amundsen. Scott and his four companions perished on the return journey, just 18 km from a supply depot.",
+   explorations:[{t_fr:"Expédition Terra Nova",t_en:"Terra Nova Expedition",d_fr:"Atteint le pôle Sud (2e) ; périt au retour (janvier–mars 1912)",d_en:"Reached South Pole (2nd); perished on return (January–March 1912)"}]},
+
+  {id:29, nom:"Ernest Shackleton", nom_en:"Ernest Shackleton", dates:"1874–1922", pays:"🇮🇪 Irlande/🇬🇧 Royaume-Uni", ere:"XXe siècle", ere_en:"20th Century",
+   zone:"Antarctique", zone_en:"Antarctica",
+   lat:-54.3, lng:-36.5,
+   emoji:"🚢",
+   wt:"Ernest Shackleton",
+   bio_fr:"Explorateur polaire irlando-britannique, Shackleton est célèbre pour son expédition Endurance (1914–1916). Après que son navire fut pris dans les glaces et coulé, il conduisit ses 27 hommes en sécurité sur l'île de l'Éléphant, puis traversa la mer de Drake pour atteindre la Géorgie du Sud et organiser le sauvetage.",
+   bio_en:"Irish-British polar explorer, Shackleton is famous for his Endurance expedition (1914–1916). After his ship was trapped in ice and sunk, he led all 27 men to safety on Elephant Island, then crossed the Drake Passage to reach South Georgia and organize rescue.",
+   explorations:[{t_fr:"Expédition Endurance",t_en:"Endurance Expedition",d_fr:"Sauvetage de 27 hommes après le naufrage de l'Endurance (1914–16)",d_en:"Rescue of 27 men after the Endurance was crushed by ice (1914–16)"}]},
+
+  {id:30, nom:"Tenzing Norgay & Edmund Hillary", nom_en:"Tenzing Norgay & Edmund Hillary", dates:"1914–1986 / 1919–2008", pays:"🇳🇵 Népal / 🇳🇿 Nouvelle-Zélande", ere:"XXe siècle", ere_en:"20th Century",
+   zone:"Himalaya, Everest", zone_en:"Himalayas, Everest",
+   lat:27.99, lng:86.93,
+   emoji:"🏔️",
+   wt:"Edmund Hillary",
+   bio_fr:"Le sherpa népalais Tenzing Norgay et le néo-zélandais Edmund Hillary furent les premiers à atteindre le sommet du mont Everest (8 849 m), le plus haut du monde, le 29 mai 1953, lors de l'expédition britannique menée par John Hunt. Hillary fut anobli ; Tenzing reçut la Médaille George.",
+   bio_en:"Nepali sherpa Tenzing Norgay and New Zealander Edmund Hillary were the first to reach the summit of Mount Everest (8,849 m) on May 29, 1953, during the British expedition led by John Hunt. Hillary was knighted; Tenzing received the George Medal.",
+   explorations:[{t_fr:"Premier sommet de l'Everest",t_en:"First Everest summit",d_fr:"Premier sommet de l'Everest (8 849 m) le 29 mai 1953",d_en:"First Everest summit (8,849 m) on May 29, 1953"}]},
+
+  {id:31, nom:"Thor Heyerdahl", nom_en:"Thor Heyerdahl", dates:"1914–2002", pays:"🇳🇴 Norvège", ere:"XXe siècle", ere_en:"20th Century",
+   zone:"Pacifique, Atlantique", zone_en:"Pacific, Atlantic",
+   lat:-8.0, lng:-140.0,
+   emoji:"🛶",
+   wt:"Thor Heyerdahl",
+   bio_fr:"Ethnologue et explorateur norvégien, Thor Heyerdahl traversa le Pacifique sur un radeau de balsa, le Kon-Tiki, en 101 jours (1947) pour prouver que des Polynésiens auraient pu traverser l'océan depuis l'Amérique du Sud. Il traversa également l'Atlantique sur un bateau en roseaux (Ra II, 1970).",
+   bio_en:"Norwegian ethnologist and explorer, Thor Heyerdahl crossed the Pacific on a balsa raft, Kon-Tiki, in 101 days (1947) to prove Polynesians could have crossed the ocean from South America. He also crossed the Atlantic on a reed boat (Ra II, 1970).",
+   explorations:[{t_fr:"Expédition Kon-Tiki",t_en:"Kon-Tiki Expedition",d_fr:"Traversée du Pacifique sur radeau de balsa en 101 jours (1947)",d_en:"Pacific crossing on balsa raft in 101 days (1947)"}]},
+
+  {id:32, nom:"Youri Gagarine", nom_en:"Yuri Gagarin", dates:"1934–1968", pays:"🇷🇺 URSS", ere:"XXe siècle", ere_en:"20th Century",
+   zone:"Espace, orbite terrestre", zone_en:"Space, Earth orbit",
+   lat:55.1, lng:61.0,
+   emoji:"🚀",
+   wt:"Youri Gagarine",
+   bio_fr:"Cosmonaute soviétique, Youri Gagarine est le premier être humain à avoir voyagé dans l'espace le 12 avril 1961 à bord de Vostok 1, accomplissant un tour complet de la Terre en 108 minutes. Son vol ouvrit l'ère de l'exploration spatiale habitée. Il périt dans un accident d'avion en 1968.",
+   bio_en:"Soviet cosmonaut, Yuri Gagarin was the first human to travel in space on April 12, 1961, aboard Vostok 1, completing one full orbit of Earth in 108 minutes. His flight opened the era of human spaceflight. He died in a plane crash in 1968.",
+   explorations:[{t_fr:"Premier vol spatial humain",t_en:"First human spaceflight",d_fr:"Premier tour de la Terre en orbite (Vostok 1, 12 avril 1961)",d_en:"First orbital flight around Earth (Vostok 1, April 12, 1961)"}]},
+
+  {id:33, nom:"Neil Armstrong", nom_en:"Neil Armstrong", dates:"1930–2012", pays:"🇺🇸 États-Unis", ere:"XXe siècle", ere_en:"20th Century",
+   zone:"Espace, Lune", zone_en:"Space, Moon",
+   lat:0.67, lng:23.47,
+   emoji:"🌕",
+   wt:"Neil Armstrong",
+   bio_fr:"Astronaute et ingénieur américain, Neil Armstrong est le premier être humain à avoir marché sur la Lune le 21 juillet 1969 lors de la mission Apollo 11, prononçant la phrase célèbre : 'C'est un petit pas pour l'homme, un bond de géant pour l'humanité.' Il fut suivi par Buzz Aldrin vingt minutes plus tard.",
+   bio_en:"American astronaut and engineer, Neil Armstrong was the first human to walk on the Moon on July 21, 1969 during Apollo 11, uttering the famous words: 'That's one small step for man, one giant leap for mankind.' He was followed by Buzz Aldrin twenty minutes later.",
+   explorations:[{t_fr:"Premier pas sur la Lune",t_en:"First step on the Moon",d_fr:"Apollo 11 : premier être humain sur la Lune (21 juillet 1969)",d_en:"Apollo 11: first human on the Moon (July 21, 1969)"}]},
+
+  {id:34, nom:"Jacques-Yves Cousteau", nom_en:"Jacques-Yves Cousteau", dates:"1910–1997", pays:"🇫🇷 France", ere:"XXe siècle", ere_en:"20th Century",
+   zone:"Océans du monde", zone_en:"World's oceans",
+   lat:43.3, lng:5.4,
+   emoji:"🤿",
+   wt:"Jacques-Yves Cousteau",
+   bio_fr:"Officier de marine, explorateur et cinéaste français, Jacques-Yves Cousteau co-inventa le scaphandre autonome (aqualung) en 1943 avec Émile Gagnan. Depuis son navire Calypso, il explora tous les océans du monde et fit découvrir les fonds marins au grand public grâce à ses films et émissions télévisées.",
+   bio_en:"French naval officer, explorer and filmmaker, Jacques-Yves Cousteau co-invented the self-contained underwater breathing apparatus (aqualung) in 1943 with Émile Gagnan. From his ship Calypso, he explored all the world's oceans and introduced the seafloor to the general public through films and TV.",
+   explorations:[{t_fr:"Exploration des océans",t_en:"Ocean Exploration",d_fr:"Exploration des fonds marins mondiaux à bord du Calypso (1950–1997)",d_en:"World ocean floor exploration aboard Calypso (1950–1997)"}]},
+
+  {id:35, nom:"Jeanne Baret", nom_en:"Jeanne Baret", dates:"1740–1807", pays:"🇫🇷 France", ere:"Lumières", ere_en:"Age of Enlightenment",
+   zone:"Tour du monde, Pacifique", zone_en:"World tour, Pacific",
+   lat:-22.9, lng:-43.2,
+   emoji:"🌺",
+   wt:"Jeanne Barret",
+   bio_fr:"Naturaliste française, Jeanne Baret est la première femme à avoir accompli le tour du monde (1766–1769) à bord du navire de Bougainville, déguisée en homme pour pouvoir embarquer. Elle recueillit des milliers de spécimens botaniques en Amérique du Sud, en Polynésie et à Madagascar, contribuant à la flore mondiale.",
+   bio_en:"French naturalist, Jeanne Baret was the first woman to circumnavigate the globe (1766–1769) aboard Bougainville's ship, disguised as a man to be allowed to embark. She collected thousands of botanical specimens in South America, Polynesia and Madagascar.",
+   explorations:[{t_fr:"1ère femme à faire le tour du monde",t_en:"1st woman to circumnavigate",d_fr:"Tour du monde déguisée en homme, collecte de 6000 specimens (1766–69)",d_en:"World tour disguised as man, collecting 6,000 botanical specimens (1766–69)"}]},
+
+  {id:36, nom:"Ida Pfeiffer", nom_en:"Ida Pfeiffer", dates:"1797–1858", pays:"🇦🇹 Autriche", ere:"XIXe siècle", ere_en:"19th Century",
+   zone:"Monde entier", zone_en:"Worldwide",
+   lat:0.0, lng:110.0,
+   emoji:"🌏",
+   wt:"Ida Pfeiffer",
+   bio_fr:"Exploratrice autrichienne, Ida Pfeiffer réalisa deux tours du monde seule, chose quasi-inouïe pour une femme au XIXe siècle. Elle visita la Terre Sainte, la Scandinavie, l'Islande, le Brésil, le Pérou, la Chine, l'Inde, la Perse et Bornéo, publiant des récits de voyage traduits dans de nombreuses langues.",
+   bio_en:"Austrian explorer, Ida Pfeiffer made two solo circumnavigations of the globe, virtually unheard of for a woman in the 19th century. She visited the Holy Land, Scandinavia, Iceland, Brazil, Peru, China, India, Persia and Borneo, publishing travel accounts translated into many languages.",
+   explorations:[{t_fr:"2 tours du monde en solitaire",t_en:"2 solo circumnavigations",d_fr:"Deux tours du monde seule, exploratrice autodidacte (1840s–1850s)",d_en:"Two solo circumnavigations, self-taught explorer (1840s–1850s)"}]}
+];
+
+// ─── ÉTAT ──────────────────────────────────────────────────────────────────
+var currentFilter = 'Tous';
+var currentSearch = '';
+var mapInit = false;
+var leafletMap = null;
+var quizQuestions = [];
+var quizIdx = 0;
+var quizScore = 0;
+var quizAnswered = false;
+var imgCache = {};
+
+// ─── LANGUE ────────────────────────────────────────────────────────────────
+function toggleLang(){
+  LANG = LANG==='fr'?'en':'fr';
+  document.getElementById('langBtn').textContent = LANG==='fr'?'🇬🇧':'🇫🇷';
+  document.getElementById('t1').textContent = LANG==='fr'?'Liste':'List';
+  document.getElementById('t2').textContent = LANG==='fr'?'Carte':'Map';
+  document.getElementById('t3').textContent = 'Quiz';
+  document.getElementById('searchInput').placeholder = LANG==='fr'?'Rechercher...':'Search...';
+  var btn = document.getElementById('searchClear');
+  if(btn) btn.style.display = 'none';
+  document.getElementById('setTitle').textContent = LANG==='fr'?'Mes Applications':'My Apps';
+  document.getElementById('setClose').textContent = LANG==='fr'?'Fermer':'Close';
+  renderFilters(); renderList(); renderQuiz();
+  if(mapInit) initMapMarkers();
+}
+
+// ─── TABS ──────────────────────────────────────────────────────────────────
+function showTab(name){
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active')});
+  document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active')});
+  var tabs = ['liste','carte','quiz'];
+  var idx = tabs.indexOf(name);
+  document.querySelectorAll('.tab')[idx].classList.add('active');
+  document.getElementById('panel-'+name).classList.add('active');
+  layout();
+  if(name==='carte' && !mapInit){initMap();}
+  if(name==='quiz'){renderQuiz();}
+}
+
+// ─── FILTERS ───────────────────────────────────────────────────────────────
+function getEres(){
+  var all = LANG==='fr'?'Tous':'All';
+  var eres = [all];
+  var seen = {};
+  EXPLORERS.forEach(function(e){
+    var era = LANG==='fr'?e.ere:e.ere_en;
+    if(!seen[era]){seen[era]=true;eres.push(era);}
+  });
+  return eres;
+}
+function renderFilters(){
+  var row = document.getElementById('filterRow'); setTimeout(layout,10);
+  row.innerHTML='';
+  getEres().forEach(function(era){
+    var btn = document.createElement('button');
+    btn.className='filter-btn'+(era===(currentFilter==='Tous'||(currentFilter==='All')?'Tous'||'All':currentFilter)?'':' ');
+    var isAll = era==='Tous'||era==='All';
+    var isActive = (isAll && (currentFilter==='Tous'||currentFilter==='All')) || (era===currentFilter);
+    if(isActive) btn.classList.add('active');
+    btn.textContent = era;
+    btn.onclick = function(){currentFilter=era;renderFilters();renderList();};
+    row.appendChild(btn);
+  });
+}
+function filterExplorers(){
+  currentSearch = document.getElementById('searchInput').value.toLowerCase();
+  renderList();
+}
+
+// ─── LISTE ─────────────────────────────────────────────────────────────────
+function renderList(){
+  var list = document.getElementById('explorer-list');
+  list.innerHTML='';
+  var all = LANG==='fr'?'Tous':'All';
+  var filtered = EXPLORERS.filter(function(e){
+    var era = LANG==='fr'?e.ere:e.ere_en;
+    var matchEra = (currentFilter===all||currentFilter==='Tous'||currentFilter==='All') || era===currentFilter;
+    var nm = (LANG==='fr'?e.nom:e.nom_en).toLowerCase();
+    var zn = (LANG==='fr'?e.zone:e.zone_en).toLowerCase();
+    var matchSearch = !currentSearch || nm.includes(currentSearch) || zn.includes(currentSearch);
+    return matchEra && matchSearch;
+  });
+  if(filtered.length===0){
+    list.innerHTML='<div style="color:rgba(255,255,255,0.3);text-align:center;padding:40px 20px;font-size:15px">'+(LANG==='fr'?'Aucun résultat':'No results')+'</div>';
+    return;
+  }
+  filtered.forEach(function(e){
+    var card = document.createElement('div');
+    card.className='explorer-card';
+    var name = LANG==='fr'?e.nom:e.nom_en;
+    var zone = LANG==='fr'?e.zone:e.zone_en;
+    var era = LANG==='fr'?e.ere:e.ere_en;
+    var flag = e.pays.match(/(\p{Emoji_Presentation}|\p{Extended_Pictographic})/u) ? e.pays.match(/^(\S+)/)[1] : '';
+
+    // thumb
+    var thumb;
+    if(imgCache[e.id]){
+      thumb = document.createElement('img');
+      thumb.className='explorer-thumb';
+      thumb.src=imgCache[e.id];
+    } else {
+      thumb = document.createElement('div');
+      thumb.className='explorer-thumb-placeholder';
+      thumb.textContent=e.emoji;
+      (function(el, eid, ewt){
+        loadImg(eid, ewt, function(src){
+          imgCache[eid]=src;
+          var img=document.createElement('img');
+          img.className='explorer-thumb';
+          img.src=src;
+          if(el.parentNode) el.parentNode.replaceChild(img, el);
+        });
+      })(thumb, e.id, e.wt);
+    }
+
+    // info
+    var info = document.createElement('div');
+    info.className='explorer-info';
+    info.innerHTML='<div class="explorer-era">'+era+' · '+e.dates+'</div>'+
+      '<div class="explorer-name">'+name+'</div>'+
+      '<div class="explorer-zone">'+zone+'</div>';
+
+    // flag
+    var flagEl = document.createElement('div');
+    flagEl.className='explorer-flag';
+    flagEl.textContent=flag;
+
+    card.appendChild(thumb);
+    card.appendChild(info);
+    card.appendChild(flagEl);
+    card.addEventListener('click', function(){openDetail(e);});
+    list.appendChild(card);
+  });
+}
+
+// ─── IMAGE LOAD (double CapacitorHttp ou XMLHttpRequest fallback) ──────────
+function loadImg(id, wt, cb){
+  var apiUrl = 'https://fr.wikipedia.org/w/api.php?action=query&titles='+encodeURIComponent(wt)+'&prop=pageimages&pithumbsize=400&format=json&origin=*';
+  if(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.CapacitorHttp){
+    var CH = window.Capacitor.Plugins.CapacitorHttp;
+    CH.get({url:apiUrl}).then(function(r){
+      var data = typeof r.data==='string'?JSON.parse(r.data):r.data;
+      var pages = data.query.pages;
+      var page = Object.values(pages)[0];
+      if(page && page.thumbnail && page.thumbnail.source){
+        var imgUrl = page.thumbnail.source;
+        CH.get({url:imgUrl,responseType:'arraybuffer'}).then(function(r2){
+          if(r2.data) cb('data:image/jpeg;base64,'+r2.data);
+        }).catch(function(){});
+      }
+    }).catch(function(){});
+  } else {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', apiUrl);
+    xhr.onload = function(){
+      try{
+        var data = JSON.parse(xhr.responseText);
+        var pages = data.query.pages;
+        var page = Object.values(pages)[0];
+        if(page && page.thumbnail && page.thumbnail.source){
+          cb(page.thumbnail.source);
+        }
+      }catch(ex){}
+    };
+    xhr.send();
+  }
+}
+
+// ─── DÉTAIL ────────────────────────────────────────────────────────────────
+function openDetail(e){
+  var name = LANG==='fr'?e.nom:e.nom_en;
+  var zone = LANG==='fr'?e.zone:e.zone_en;
+  var era = LANG==='fr'?e.ere:e.ere_en;
+  var bio = LANG==='fr'?e.bio_fr:e.bio_en;
+  var wikiLang = LANG==='fr'?'fr':'en';
+  var wikiTitle = e.wt;
+
+  var portraitHTML;
+  if(imgCache[e.id]){
+    portraitHTML='<img class="detail-portrait" src="'+imgCache[e.id]+'" alt="">';
+  } else {
+    portraitHTML='<div class="detail-portrait-ph" id="dp'+e.id+'">'+e.emoji+'</div>';
+    loadImg(e.id, e.wt, function(src){
+      imgCache[e.id]=src;
+      var ph=document.getElementById('dp'+e.id);
+      if(ph) ph.outerHTML='<img class="detail-portrait" src="'+src+'" alt="">';
+    });
+  }
+
+  var exHTML = e.explorations.map(function(ex){
+    var t = LANG==='fr'?ex.t_fr:ex.t_en;
+    var d = LANG==='fr'?ex.d_fr:ex.d_en;
+    return '<div class="exploration-item"><div class="exploration-item-title">'+t+'</div><div class="exploration-item-desc">'+d+'</div></div>';
+  }).join('');
+
+  var lbl_dates = LANG==='fr'?'Dates':'Dates';
+  var lbl_origine = LANG==='fr'?'Origine':'Origin';
+  var lbl_zone = LANG==='fr'?'Zone explorée':'Explored zone';
+  var lbl_bio = LANG==='fr'?'Biographie':'Biography';
+  var lbl_expl = LANG==='fr'?'Explorations majeures':'Major Explorations';
+  var lbl_wiki = LANG==='fr'?'Voir sur Wikipédia →':'View on Wikipedia →';
+
+  document.getElementById('detailContent').innerHTML=
+    '<div class="detail-hero">'+
+      portraitHTML+
+      '<div class="detail-meta">'+
+        '<div class="detail-name">'+name+'</div>'+
+        '<div class="detail-dates">'+e.dates+'</div>'+
+        '<div class="detail-origin">'+e.pays+'</div>'+
+        '<div class="detail-tags">'+
+          '<span class="detail-tag">'+era+'</span>'+
+          '<span class="detail-tag">'+zone.split(',')[0]+'</span>'+
+        '</div>'+
+      '</div>'+
+    '</div>'+
+    '<div class="detail-body">'+
+      '<div class="detail-section-title">'+lbl_bio+'</div>'+
+      '<div class="detail-bio">'+bio+'</div>'+
+      '<div class="detail-section-title">'+lbl_expl+'</div>'+
+      '<div class="detail-explorations">'+exHTML+'</div>'+
+    '</div>'+
+    '<a class="detail-wiki-btn" href="https://'+wikiLang+'.wikipedia.org/wiki/'+encodeURIComponent(wikiTitle)+'" target="_blank" onclick="openExternal(this.href);return false;">'+lbl_wiki+'</a>';
+
+  document.getElementById('detailOverlay').classList.add('open');
+}
+function openExternal(url){
+  if(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser){
+    window.Capacitor.Plugins.Browser.open({url:url});
+  } else { window.open(url,'_blank'); }
+}
+function closeDetail(ev){if(ev.target===document.getElementById('detailOverlay'))closeDetailBtn();}
+function closeDetailBtn(){document.getElementById('detailOverlay').classList.remove('open');}
+
+// ─── CARTE ─────────────────────────────────────────────────────────────────
+function initMap(){
+  if(mapInit)return;
+  mapInit=true;
+  leafletMap = L.map('map',{zoomControl:true,attributionControl:false}).setView([20,10],2);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(leafletMap);
+  initMapMarkers();
+}
+function initMapMarkers(){
+  if(!leafletMap)return;
+  leafletMap.eachLayer(function(l){if(l instanceof L.Marker||l instanceof L.DivIcon)leafletMap.removeLayer(l);});
+  EXPLORERS.forEach(function(e){
+    var name = LANG==='fr'?e.nom:e.nom_en;
+    var zone = LANG==='fr'?e.zone:e.zone_en;
+    var era = LANG==='fr'?e.ere:e.ere_en;
+    var lbl = LANG==='fr'?'Voir détail →':'See detail →';
+    var icon = L.divIcon({
+      html:'<div style="font-size:22px;text-shadow:0 2px 6px rgba(0,0,0,0.8);cursor:pointer">'+e.emoji+'</div>',
+      className:'',iconSize:[28,28],iconAnchor:[14,14]
+    });
+    var marker = L.marker([e.lat,e.lng],{icon:icon}).addTo(leafletMap);
+    marker.bindPopup(
+      '<div class="popup-name">'+name+'</div>'+
+      '<div class="popup-era">'+era+' · '+e.dates+'</div>'+
+      '<div class="popup-zone">'+zone+'</div>'+
+      '<div class="popup-detail-btn" onclick="openDetail(window._EXPL['+e.id+'])">'+lbl+'</div>'
+    );
+  });
+}
+window._EXPL = {};
+EXPLORERS.forEach(function(e){window._EXPL[e.id]=e;});
+
+// ─── QUIZ ──────────────────────────────────────────────────────────────────
+function buildQuizQuestions(){
+  var qs = [];
+  EXPLORERS.forEach(function(e){
+    qs.push({type:'name', explorer:e});
+    qs.push({type:'era', explorer:e});
+    qs.push({type:'zone', explorer:e});
+  });
+  // shuffle
+  for(var i=qs.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var tmp=qs[i];qs[i]=qs[j];qs[j]=tmp;}
+  return qs.slice(0,20);
+}
+function getWrong(correct, field, isEN){
+  var pool = EXPLORERS.filter(function(e){
+    var v = isEN?e[field+'_en']||e[field]:e[field];
+    var cv = isEN?correct[field+'_en']||correct[field]:correct[field];
+    return v !== cv;
+  });
+  var shuffled = pool.sort(function(){return Math.random()-0.5;});
+  return shuffled.slice(0,3).map(function(e){return isEN?e[field+'_en']||e[field]:e[field];});
+}
+function shuffle(arr){for(var i=arr.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=arr[i];arr[i]=arr[j];arr[j]=t;}return arr;}
+
+function renderQuiz(){
+  if(quizQuestions.length===0){
+    quizQuestions=buildQuizQuestions();
+    quizIdx=0;quizScore=0;quizAnswered=false;
+  }
+  document.getElementById('qsl').textContent=LANG==='fr'?'Score':'Score';
+  updateScoreDisplay();
+  if(quizIdx>=quizQuestions.length){renderQuizFinish();return;}
+  var q = quizQuestions[quizIdx];
+  var e = q.explorer;
+  var en = LANG==='en';
+  var container = document.getElementById('quiz-main');
+  container.innerHTML='';
+
+  var card = document.createElement('div');
+  card.className='quiz-card';
+
+  var num = document.createElement('div');
+  num.className='quiz-q-num';
+  num.textContent=(LANG==='fr'?'Question ':'Question ')+' '+(quizIdx+1)+' / '+quizQuestions.length;
+
+  var qDiv = document.createElement('div');
+  qDiv.className='quiz-question';
+
+  var hintDiv = document.createElement('div');
+  hintDiv.className='quiz-hint';
+
+  // portrait
+  var portDiv = document.createElement('div');
+  portDiv.className='quiz-portrait-q-ph';
+  portDiv.style.cssText='width:70px;height:70px;border-radius:12px;float:right;margin:0 0 10px 12px;background:linear-gradient(135deg,#1a2040,#2a3060);display:inline-flex;align-items:center;justify-content:center;font-size:28px;border:2px solid rgba(201,162,39,0.3);flex-shrink:0';
+  portDiv.textContent=e.emoji;
+  if(imgCache[e.id]){
+    portDiv.outerHTML='<img class="quiz-portrait-q" src="'+imgCache[e.id]+'">';
+  } else {
+    loadImg(e.id,e.wt,function(src){imgCache[e.id]=src;var ph=card.querySelector('.quiz-portrait-q-ph');if(ph){var img=document.createElement('img');img.className='quiz-portrait-q';img.src=src;ph.parentNode.replaceChild(img,ph);}});
+  }
+
+  var answers=[];
+  var correct='';
+
+  if(q.type==='name'){
+    qDiv.textContent = en ? 'Who is this explorer?' : 'Quel est cet explorateur ?';
+    hintDiv.textContent = (en?'Explored: ':'A exploré : ')+(en?e.zone_en:e.zone);
+    correct = en?e.nom_en:e.nom;
+    var wrongs = getWrong(e,'nom',en);
+    answers = shuffle([correct].concat(wrongs));
+  } else if(q.type==='era'){
+    qDiv.textContent = en ? 'Which era did '+e.nom_en+' belong to?' : 'À quelle époque appartenait '+e.nom+' ?';
+    hintDiv.textContent = e.dates;
+    correct = en?e.ere_en:e.ere;
+    var pool2 = [];
+    var seen2={};seen2[correct]=true;
+    EXPLORERS.forEach(function(x){var v=en?x.ere_en:x.ere;if(!seen2[v]){seen2[v]=true;pool2.push(v);}});
+    var wrongs2=pool2.sort(function(){return Math.random()-0.5;}).slice(0,3);
+    answers = shuffle([correct].concat(wrongs2));
+  } else {
+    qDiv.textContent = en ? 'Where did '+e.nom_en+' explore?' : 'Où a exploré '+e.nom+' ?';
+    hintDiv.textContent = e.dates;
+    correct = en?e.zone_en:e.zone;
+    var wrongs3 = getWrong(e,'zone',en);
+    answers = shuffle([correct].concat(wrongs3));
+  }
+
+  var answersDiv = document.createElement('div');
+  answersDiv.className='quiz-answers';
+  answers.forEach(function(ans){
+    var btn = document.createElement('button');
+    btn.className='quiz-answer-btn';
+    btn.textContent=ans;
+    btn.onclick=function(){handleAnswer(ans,correct,card);};
+    answersDiv.appendChild(btn);
+  });
+
+  var nextBtn = document.createElement('button');
+  nextBtn.className='quiz-next-btn';
+  nextBtn.id='quizNextBtn';
+  nextBtn.textContent=LANG==='fr'?'Question suivante ›':'Next Question ›';
+  nextBtn.onclick=function(){quizIdx++;quizAnswered=false;renderQuiz();};
+
+  card.appendChild(num);
+  card.appendChild(portDiv);
+  card.appendChild(qDiv);
+  card.appendChild(hintDiv);
+  card.appendChild(answersDiv);
+  card.appendChild(nextBtn);
+  container.appendChild(card);
+}
+function handleAnswer(ans, correct, card){
+  if(quizAnswered)return;
+  quizAnswered=true;
+  var btns=card.querySelectorAll('.quiz-answer-btn');
+  btns.forEach(function(b){
+    b.style.pointerEvents='none';
+    if(b.textContent===correct) b.classList.add('correct');
+    else if(b.textContent===ans) b.classList.add('wrong');
+  });
+  if(ans===correct) quizScore++;
+  updateScoreDisplay();
+  var nb=document.getElementById('quizNextBtn');
+  if(nb)nb.classList.add('visible');
+}
+function updateScoreDisplay(){
+  document.getElementById('qsv').textContent=quizScore+' / '+quizIdx;
+}
+function renderQuizFinish(){
+  var pct = Math.round(quizScore/quizQuestions.length*100);
+  var icon = pct>=80?'🏆':pct>=50?'⭐':'📚';
+  var msg = LANG==='fr'?
+    (pct>=80?'Excellent ! Vous connaissez bien les explorateurs !':pct>=50?'Bien joué ! Continuez à explorer !':'Continuez à apprendre !'):
+    (pct>=80?'Excellent! You know your explorers!':pct>=50?'Well done! Keep exploring!':'Keep learning!');
+  document.getElementById('quiz-main').innerHTML=
+    '<div class="quiz-finish">'+
+      '<div class="quiz-finish-icon">'+icon+'</div>'+
+      '<div class="quiz-finish-score">'+quizScore+' / '+quizQuestions.length+'</div>'+
+      '<div class="quiz-finish-msg">'+msg+'</div>'+
+      '<button class="quiz-restart-btn" onclick="restartQuiz()">'+(LANG==='fr'?'Rejouer':'Play again')+'</button>'+
+    '</div>';
+}
+function restartQuiz(){
+  quizQuestions=[]; quizIdx=0; quizScore=0; quizAnswered=false;
+  renderQuiz();
+}
+
+// ─── SETTINGS ──────────────────────────────────────────────────────────────
+var APPS_CATALOG = [
+  {id:'6763507194',name:'Hotels RoofTop'},{id:'6762618424',name:'Ponts du Monde'},
+  {id:'6763076110',name:'Paquebots'},{id:'6763069304',name:'Avions de Légende'},
+  {id:'6763071567',name:'Voitures Légende'},{id:'6762077646',name:'Flip Board'},
+  {id:'6762632868',name:'Trains Mythiques'},{id:'6762823383',name:'Châteaux Loire'},
+  {id:'6762598304',name:'Mers & Océans'},{id:'6762594201',name:'Détroits'},
+  {id:'6762558969',name:'ColorCodeMind'},{id:'6762552826',name:'Lexigo'},
+  {id:'6762542395',name:'Conquêtes Soc.'},{id:'6762522136',name:'Dynasties Chin.'},
+  {id:'6762452564',name:'Dynasties Rus.'},{id:'6762370541',name:'États-Unis'},
+  {id:'6762091681',name:'Bataille Navale'},{id:'6762098486',name:'Familles Roy.'},
+  {id:'6762263227',name:'Leaders Eur.'},{id:'6762346365',name:'Pays UE'},
+  {id:'6762256169',name:'Présidents US'},{id:'6762076518',name:'Dames Checkers'},
+  {id:'6761993002',name:'Comédie Fr.'},{id:'6761769529',name:'Institut France'},
+  {id:'6761324444',name:'Présidents Fr.'},{id:'6761709149',name:'Basilique St-Denis'},
+  {id:'6761685637',name:'Arbres France'},{id:'6761363063',name:'Sénat Paris'},
+  {id:'6761656628',name:'Compositeurs'},{id:'6761374601',name:'Maréchaux Nap.'},
+  {id:'6761322546',name:'Rois de France'},{id:'6761361079',name:'Assemblée Paris'},
+  {id:'6761335268',name:'Panthéon Paris'},{id:'1483084001',name:'Belote Calc'},
+  {id:'6760751055',name:'Cimetières Paris'},{id:'1481989301',name:'Tarots Calc'},
+  {id:'6761334922',name:'Académie Fr.'},{id:'6761293938',name:'Scènes Paris'},
+  {id:'6761271324',name:'MediSafe'},{id:'6760617965',name:'MesRestaurants'},
+  {id:'6760126279',name:'Cave Manager'},{id:'6760890465',name:'Musées Paris'},
+  {id:'6760929391',name:'Théâtres Paris'},{id:'6759219383',name:'Frigo Manager'},
+  {id:'1475884625',name:'Toi ou Moi'},{id:'6761421276',name:'Capitales Europe'},
+  {id:'6762006105',name:'Iconic Covers'}
+];
+function renderSettings(){
+  var grid = document.getElementById('appsGrid');
+  var sec = document.getElementById('fsSecTitle');
+  if(sec) sec.textContent = LANG==='fr' ? 'Taille des textes' : 'Text size';
+  if(grid.childElementCount>0) return;
+  APPS_CATALOG.forEach(function(app){
+    var item = document.createElement('div');
+    item.className='apps-grid-item';
+    item.onclick=function(){openExternal('https://apps.apple.com/app/id'+app.id);};
+    var img = document.createElement('img');
+    img.width=56; img.height=56;
+    img.style.borderRadius='13px';
+    var numId = parseInt(app.id);
+    var cbName = 'itcb'+numId;
+    window[cbName] = function(d){if(d&&d.results&&d.results[0])img.src=d.results[0].artworkUrl60;};
+    var s = document.createElement('script');
+    s.src='https://itunes.apple.com/lookup?id='+numId+'&callback='+cbName;
+    document.body.appendChild(s);
+    var span = document.createElement('span');
+    span.textContent=app.name;
+    item.appendChild(img);
+    item.appendChild(span);
+    grid.appendChild(item);
+  });
+}
+function openSettings(){renderSettings();document.getElementById('settingsOverlay').classList.add('open');}
+function closeSettings(){document.getElementById('settingsOverlay').classList.remove('open');}
+function closeSettingsEv(ev){if(ev.target===document.getElementById('settingsOverlay'))closeSettings();}
+
+// ─── TAILLE POLICES ──────────────────────────────────────────────────────────
+function applyFs(val){
+  val = parseFloat(val);
+  document.documentElement.style.setProperty('--fs', val);
+  var pct = Math.round(val * 100);
+  var lbl = document.getElementById('fsValLbl');
+  if(lbl) lbl.textContent = pct + '%';
+  var sl = document.getElementById('fsSlider');
+  if(sl) sl.value = val;
+  try{ localStorage.setItem('explorateurs_fs', val); }catch(e){}
+}
+function initFs(){
+  var isIpad = (navigator.maxTouchPoints > 1 && /iPad|Macintosh/.test(navigator.userAgent))
+            || window.screen.width >= 768;
+  var saved = null;
+  try{ saved = localStorage.getItem('explorateurs_fs'); }catch(e){}
+  var fs = saved ? parseFloat(saved) : (isIpad ? 1.2 : 1.0);
+  applyFs(fs);
+}
+
+// ─── INIT ──────────────────────────────────────────────────────────────────
+initFs();
+setTimeout(function(){ renderFilters(); renderList(); }, 0);
+document.addEventListener('deviceready', function(){}, false);
+
+function filterX(){
+  currentSearch = document.getElementById('searchInput').value.toLowerCase();
+  var btn = document.getElementById('searchClear');
+  if(btn) btn.style.display = currentSearch ? 'flex' : 'none';
+  renderList();
+}
+function clearSearch(){
+  document.getElementById('searchInput').value = '';
+  currentSearch = '';
+  document.getElementById('searchClear').style.display = 'none';
+  renderList();
+}
+</script>
+</body>
+</html>
